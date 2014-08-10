@@ -5,14 +5,15 @@
 -include_lib("ec_chess/include/ec.hrl").
 
 start(Count) ->
-    L = lists:seq(1, Count),
-    init_board_test(Count, L).
+    init_board_test(Count).
 
-init_board_test(C, L) ->
+init_board_test(C) ->
     St = ec_board:start_board(),
-    ec_board:perftest(St, C, L).
+    {T1, _} = timer:tc(fun() ->ec_board:perftest(C, St, {{2,2},{2,4}}) end),
+    display_performance("Init state, pawn move", C, T1).
 
-%    {T1, Res} = timer:tc(fun() -> [ec_board:op_cond(St, {{2,2},{2,4}}) || _ <- L] end),
-%    io:format("~p ~p Res: '~p' ~n", [?MODULE, ?LINE, Res]),
-%    io:format("~p ~p T1: '~p' ~n", [?MODULE, ?LINE, T1]).
+display_performance(Str, Count, Time) ->
+    Perf = trunc(Count * (1000000 / Time)),
+    io:format("~40s     - ~p~n", [Str, Perf]).
+
 

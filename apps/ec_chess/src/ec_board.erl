@@ -16,11 +16,14 @@
 %% API
 %%------------------------------------------------------------------------------
 
-perftest(St, C, L) ->
-    {T1, Res} = timer:tc(fun() -> [ec_board:op_cond(St, {{2,2},{2,4}}) || _ <- L] end),
-    io:format("~p ~p Res: '~p' ~n", [?MODULE, ?LINE, Res]),
-    io:format("~p ~p T1: '~p' ~n", [?MODULE, ?LINE, T1]).
 
+-spec perftest(C :: integer(), State :: #board_state{}, Op :: operator()) ->
+    Result :: integer().
+perftest(0, _State, Op) ->
+    ok;
+perftest(C, State, Op) ->
+    ec_board:op_cond(State, Op),
+    perftest(C - 1, State, Op).
 
 -spec op_cond(State, Op) -> boolean() when
     State :: #board_state{},
