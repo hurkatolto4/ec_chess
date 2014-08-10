@@ -77,23 +77,23 @@ op_cond2(#board_state{board = Board, to_move = ToMove} = State, Op) ->
                 {Col, _} when Col =/= ToMove ->
                     false;
                 {Col, _} ->
-                    op_cond(State, Op, FromPiece) andalso
+                    op_cond(FromPiece, State, Op) andalso
                         not check_chess_after_op(State, Op, Col)
             end
     end.
 
--spec op_cond(State, Op, FromPiece) -> Result when
+-spec op_cond(FromPiece, State, Op) -> Result when
       State :: #board_state{},
       Op :: operator(),
       FromPiece :: integer(),
       Result :: boolean().
 %% White pawn
-op_cond(State, Op, ?WP) ->
+op_cond(?WP, State, Op) ->
     Col = color(?WP),
     is_pawn_simple_move(State, Op, Col) orelse is_pawn_take(State, Op, Col)
         orelse is_en_passant(State, Op, Col);
 %% White rook
-op_cond(State, {{Fx, Fy}, {Tx, Ty}} = _Op, ?WR) ->
+op_cond(?WR, State, {{Fx, Fy}, {Tx, Ty}} = _Op) ->
     case Fx =:= Tx orelse Fy =:= Ty of
         true ->
             check_empty_fields_between(State#board_state.board, Fx, Fy, Tx, Ty);
@@ -101,11 +101,11 @@ op_cond(State, {{Fx, Fy}, {Tx, Ty}} = _Op, ?WR) ->
             false
     end;
 %% White knight
-op_cond(_State, {{Fx, Fy}, {Tx, Ty}} = _Op, ?WN) ->
+op_cond(?WN, _State, {{Fx, Fy}, {Tx, Ty}} = _Op) ->
     (diff(Tx, Fx) =:= 1 andalso diff(Ty, Fy) =:= 2) orelse
        (diff(Tx, Fx) =:= 2 andalso diff(Ty, Fy) =:= 1);
 %% White bishop
-op_cond(State, {{Fx, Fy}, {Tx, Ty}} = _Op, ?WB) ->
+op_cond(?WB, State, {{Fx, Fy}, {Tx, Ty}} = _Op) ->
     case diff(Fx, Tx) =:= diff(Fy, Ty) of
         true ->
             check_empty_fields_between(State#board_state.board, Fx, Fy, Tx, Ty);
@@ -113,7 +113,7 @@ op_cond(State, {{Fx, Fy}, {Tx, Ty}} = _Op, ?WB) ->
             false
     end;
 %% White queen
-op_cond(State, {{Fx, Fy}, {Tx, Ty}} = _Op, ?WQ) ->
+op_cond(?WQ, State, {{Fx, Fy}, {Tx, Ty}} = _Op) ->
     case diff(Fx, Tx) =:= diff(Fy, Ty) orelse Fx =:= Tx orelse Fy =:= Ty of
         true ->
             check_empty_fields_between(State#board_state.board, Fx, Fy, Tx, Ty);
@@ -121,15 +121,17 @@ op_cond(State, {{Fx, Fy}, {Tx, Ty}} = _Op, ?WQ) ->
             false
     end;
 %% White king
-op_cond(_State, {{Fx, Fy}, {Tx, Ty}} = _Op, ?WK) ->
+op_cond(?WK, _State, {{Fx, Fy}, {Tx, Ty}} = _Op) ->
     Dx = diff(Fx, Tx),
     Dy = diff(Fy, Ty),
     (Dx =:= 1 orelse Dx =:= 0) andalso (Dy =:= 1 orelse Dy =:= 0);
 %% Black pawn
-op_cond(_State, _Op, ?BP) ->
-    true;
+op_cond(?BP, State, Op) ->
+    Col = color(?BP),
+    is_pawn_simple_move(State, Op, Col) orelse is_pawn_take(State, Op, Col)
+        orelse is_en_passant(State, Op, Col);
 %% Black rook
-op_cond(State, {{Fx, Fy}, {Tx, Ty}} = _Op, ?BR) ->
+op_cond(?BR, State, {{Fx, Fy}, {Tx, Ty}} = _Op) ->
     case Fx =:= Tx orelse Fy =:= Ty of
         true ->
             check_empty_fields_between(State#board_state.board, Fx, Fy, Tx, Ty);
@@ -137,11 +139,11 @@ op_cond(State, {{Fx, Fy}, {Tx, Ty}} = _Op, ?BR) ->
             false
     end;
 %% Black knight
-op_cond(_State, {{Fx, Fy}, {Tx, Ty}} = _Op, ?BN) ->
+op_cond(?BN, _State, {{Fx, Fy}, {Tx, Ty}} = _Op) ->
     (diff(Tx, Fx) =:= 1 andalso diff(Ty, Fy) =:= 2) orelse
        (diff(Tx, Fx) =:= 2 andalso diff(Ty, Fy) =:= 1);
 %% Black bishop
-op_cond(State, {{Fx, Fy}, {Tx, Ty}} = _Op, ?BB) ->
+op_cond(?BB, State, {{Fx, Fy}, {Tx, Ty}} = _Op) ->
     case diff(Fx, Tx) =:= diff(Fy, Ty) of
         true ->
             check_empty_fields_between(State#board_state.board, Fx, Fy, Tx, Ty);
@@ -149,7 +151,7 @@ op_cond(State, {{Fx, Fy}, {Tx, Ty}} = _Op, ?BB) ->
             false
     end;
 %% Black queen
-op_cond(State, {{Fx, Fy}, {Tx, Ty}} = _Op, ?BQ) ->
+op_cond(?BQ, State, {{Fx, Fy}, {Tx, Ty}} = _Op) ->
     case diff(Fx, Tx) =:= diff(Fy, Ty) orelse Fx =:= Tx orelse Fy =:= Ty of
         true ->
             check_empty_fields_between(State#board_state.board, Fx, Fy, Tx, Ty);
@@ -157,7 +159,7 @@ op_cond(State, {{Fx, Fy}, {Tx, Ty}} = _Op, ?BQ) ->
             false
     end;
 %% Black king
-op_cond(_State, {{Fx, Fy}, {Tx, Ty}} = _Op, ?BK) ->
+op_cond(?BK, _State, {{Fx, Fy}, {Tx, Ty}} = _Op) ->
     Dx = diff(Fx, Tx),
     Dy = diff(Fy, Ty),
     (Dx =:= 1 orelse Dx =:= 0) andalso (Dy =:= 1 orelse Dy =:= 0).

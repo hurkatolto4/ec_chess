@@ -26,5 +26,5 @@ xref:		compile
 
 check: xref dialyze
 
-perftest:	compile
+perftest:
 	./apps/ec_perftest/scripts/perftest.escript
