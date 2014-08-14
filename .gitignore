@@ -1,0 +1,17 @@
+*~
+.eunit
+deps
+*.o
+*.beam
+*.plt
+*.pdf
+*.html
+apps/*/doc
+.dialyzer_plt
+*.swp
+rel/files
+apps/*/ebin
+.rebar
+tags
+TAGS
+
