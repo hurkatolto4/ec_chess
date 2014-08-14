@@ -15,9 +15,9 @@ init_board_test(C) ->
     St = ec_board:start_board(),
     %% simple pawn movements
     {T1, _} = ?PERF(C, op_cond, [St, {{2,2},{2,4}}, true]),
-    display_performance("Init state, pawn move", C, T1),
+    ?LOG_PERF("Init state, pawn move", C, T1),
     {T2, _} = ?PERF(C, op_cond, [St, {{2,2},{2,3}}, true]),
-    display_performance("Init state, pawn move simple", C, T2),
+    ?LOG_PERF("Init state, pawn move simple", C, T2),
     {T3, _} = ?PERF(C, op_cond, [St, {{2,1},{1,3}}, true]),
-    display_performance("Init state, pawn move simple", C, T3).
+    ?LOG_PERF("Init state, pawn move simple", C, T3).
 

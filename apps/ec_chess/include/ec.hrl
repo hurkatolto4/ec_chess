@@ -62,7 +62,7 @@
     wk_castled = false          :: boolean(),
     bk_castled = false          :: boolean(),
     to_move    = ?WHITE         :: ?WHITE | ?BLACK,
-    last_move  = undefined      :: undefined | position(),
+    last_move  = undefined      :: undefined | operator(),
     board      = undefined      :: undefined | board()
 }).
 

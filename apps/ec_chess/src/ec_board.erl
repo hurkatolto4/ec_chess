@@ -161,8 +161,6 @@ op_cond3(?BK, _State, {{Fx, Fy}, {Tx, Ty}} = _Op) ->
 -spec get_piece(Board :: board(), Pos :: position() | integer()) -> integer().
 get_piece(Board, {X, Y}) ->
     Pos = ?POS(X, Y),
-    element(Pos, Board);
-get_piece(Board, Pos) ->
     element(Pos, Board).
 
 %%------------------------------------------------------------------------------
@@ -270,7 +268,12 @@ apply_op(State, {{Fx, Fy}, {_Tx, _Ty}} = Op) ->
         ?CASTLE_WHITE_LONG  -> apply_castle_white_long(State, Op);
         ?CASTLE_BLACK_SHORT -> apply_castle_black_short(State, Op);
         ?CASTLE_BLACK_LONG  -> apply_castle_black_long(State, Op);
-        ?CASTLE_NOT         -> apply_simple(State, Op)
+        ?CASTLE_NOT         ->
+            Col =  State#board_state.to_move,
+            case is_en_passant(State, Op, Col) of
+                true -> apply_en_passant(State, Op);
+                false -> apply_simple(State, Op)
+            end
     end.
 
 -spec get_castle_type(Piece, Op) -> Result when
@@ -282,6 +285,22 @@ get_castle_type(?WK, {{5,1},{3,1}}) -> ?CASTLE_WHITE_LONG;
 get_castle_type(?BK, {{5,8},{7,8}}) -> ?CASTLE_BLACK_SHORT;
 get_castle_type(?BK, {{5,8},{3,8}}) -> ?CASTLE_BLACK_LONG;
 get_castle_type(_Piece, _Op) ->        ?CASTLE_NOT.
+
+-spec apply_en_passant(State, Op) -> NewState when
+    State :: #board_state{},
+    Op :: operator(),
+    NewState :: #board_state{}.
+apply_en_passant(State, {{Fx, Fy}, {Tx, Ty}} = Op) ->
+    Board = State#board_state.board,
+    Piece = get_piece(Board, {Fx, Fy}),
+    Nb1 = set_field(Board, Fx, Fy, ?OO),
+    Nb2 = set_field(Nb1, Tx, Ty, Piece),
+    Nb3 = set_field(Nb2, Tx, Fy, ?OO),
+    State#board_state{
+        to_move = ?NEG_COL(State#board_state.to_move),
+        last_move = Op,
+        board = Nb3
+    }.
 
 apply_simple(State, {{Fx, Fy}, {Tx, Ty}} = Op) ->
     #board_state{to_move = ToMove, board = Board} = State,
@@ -374,7 +393,7 @@ find_first_piece(Board, ChessPiece) ->
 find_first_piece(65, _Board, _Cp) ->
     throw({error, ?ERR_NO_SUCH_PIECE});
 find_first_piece(Pos, Board, Cp) ->
-    case get_piece(Board, Pos) of
+    case element(Pos, Board) of
         Cp -> ?UN_POS(Pos);
         _ -> find_first_piece(Pos + 1, Board, Cp)
     end.
@@ -423,6 +442,34 @@ is_pawn_take(_State, _Op, _Col) ->
       Op :: operator(),
       Col :: color(),
       Result :: boolean().
-is_en_passant(_State, _Op, _Col) ->
-    false.
+is_en_passant(State, {{Fx, Fy}, {Tx, Ty}} = _Op, _Col = ?WHITE) ->
+    case Ty - Fy =:= 1 andalso abs(Fx - Tx) =:= 1 andalso Ty =:= 6 of
+        true ->
+            {{_LFx, _LFy}, {LTx, LTy}} = State#board_state.last_move,
+            case Tx =:= LTx andalso Ty =:= LTy + 1 of
+                true ->
+                    Board = State#board_state.board,
+                    get_piece(Board, {LTx, LTy}) =:= ?BP;
+                false ->
+                    false
+            end;
+        false ->
+            false
+    end;
+is_en_passant(State, {{Fx, Fy}, {Tx, Ty}} = _Op, _Col = ?BLACK) ->
+    case Ty - Fy =:= -1 andalso abs(Fx - Tx) =:= 1 andalso Ty =:= 3 of
+        true ->
+            {{_LFx, _LFy}, {LTx, LTy}} = State#board_state.last_move,
+            case Tx =:= LTx andalso Ty =:= LTy - 1 of
+                true ->
+                    Board = State#board_state.board,
+                    get_piece(Board, {LTx, LTy}) =:= ?BP;
+                false ->
+                    false
+            end;
+        false ->
+            false
+    end.
+
+
 

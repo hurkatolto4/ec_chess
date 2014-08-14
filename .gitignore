@@ -14,4 +14,5 @@ apps/*/ebin
 .rebar
 tags
 TAGS
-
+*.so
+rebar

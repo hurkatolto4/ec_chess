@@ -4,25 +4,25 @@ compile:
 	rebar compile
 
 doc:	compile
-	rebar skip_deps=true doc
+	./rebar skip_deps=true doc
 
-eunit:
-	rebar compile eunit
+eunit:	compile
+		./rebar eunit
 
 generate: 	compile
-	rebar generate
+	./rebar generate
 
 console:	generate
 	rel/ec_chess/bin/ec_chess console
 
 clean:
-	rebar clean
+	./rebar clean
 
 dialyze:	compile
 	dialyzer -pa apps/*/ebin -Wno_return --apps ec_chess
 
 xref:		compile
-	rebar xref
+	./rebar xref
 
 check: xref dialyze
 

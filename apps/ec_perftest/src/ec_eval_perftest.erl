@@ -15,4 +15,4 @@ init_board_test(C) ->
     St = ec_board:start_board(),
     %% simple pawn movements
     {T1, _} = ?PERF(C, eval, [St]),
-    display_performance("Init state eval test", C, T1).
+    ?LOG_PERF("Init state eval test", C, T1).

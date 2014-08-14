@@ -7,7 +7,7 @@
 -include_lib("eunit/include/eunit.hrl").
 
 -define(octest(Exp, State, Op),
-        ?assertEqual(Exp, ec_board:op_cond(State, Op))
+        ?assertEqual(Exp, ec_board:op_cond(State, Op, true))
     ).
 
 init_test() ->

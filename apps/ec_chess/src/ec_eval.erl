@@ -16,7 +16,7 @@
 
 -spec eval(State :: #board_state{}) -> Result :: integer().
 eval(State) ->
-    #board_state{to_move = ToMove,
+    #board_state{to_move = _ToMove,
                  board = Board} = State,
     eval_board(1, Board, 0).
 
