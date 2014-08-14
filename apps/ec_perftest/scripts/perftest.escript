@@ -5,6 +5,7 @@
 main([]) ->
     io:format("\n\n\nStart performance tests\n", []),
     io:format("**************************************************\n", []),
-    ec_board_perftest:start(1000000).
+    ec_board_perftest:start(100000),
+    ec_eval_perftest:start(100000).
     
 
