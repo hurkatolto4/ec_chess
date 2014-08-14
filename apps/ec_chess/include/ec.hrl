@@ -23,16 +23,25 @@
 -define(BK, 12).
 
 %% Colour codes
--define(EMPTY, 0).
--define(WHITE, 1).
--define(BLACK, 2).
+-define(WHITE, 0).
+-define(BLACK, 1).
+-define(EMPTY, 2).
 
--define(C(X), (8-(X-1))).
--define(POS(X, Y),  ((?C(Y) - 1) * 8 + ?C(X))).
--define(UN_POS(P),  {?C((P-1) rem 8 + 1), ?C((P-1) div 8 + 1)}).
+-define(POS(X, Y),  ((8 - Y) * 8 + 9 - X)).
+-define(UN_POS(P),  {8 - (P - 1) rem 8  , 8 - (P - 1) div 8}).
+-define(NEG_COL(C), 1 - C).
 
 %% Errors occuring during calculations
 -define(ERR_NO_SUCH_PIECE, 1).
+
+%%
+%% Defines for castle move types
+%%
+-define(CASTLE_NOT, 0).
+-define(CASTLE_WHITE_SHORT, 1).
+-define(CASTLE_WHITE_LONG, 2).
+-define(CASTLE_BLACK_SHORT, 3).
+-define(CASTLE_BLACK_LONG, 4).
 
 %%
 %% Types
@@ -44,13 +53,14 @@
 -type position() :: {X :: board_pos(), Y :: board_pos()}.  %% must be between 1..8
 
 -type color() :: ?EMPTY | ?WHITE | ?BLACK.
+-type castle_t() :: ?CASTLE_NOT..?CASTLE_BLACK_LONG.
 
 %%
 %% Record definitions
 %%
 -record(board_state, {
     wk_castled = false          :: boolean(),
-    bk_castled = true           :: boolean(),
+    bk_castled = false          :: boolean(),
     to_move    = ?WHITE         :: ?WHITE | ?BLACK,
     last_move  = undefined      :: undefined | position(),
     board      = undefined      :: undefined | board()
