@@ -33,6 +33,9 @@
 
 %% Errors occuring during calculations
 -define(ERR_NO_SUCH_PIECE, 1).
+-define(ERR_NOT_EQUAL,     2).
+-define(ERR_FIELD_LIMITS,  3).
+
 
 %%
 %% Defines for castle move types

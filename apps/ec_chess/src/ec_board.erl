@@ -15,16 +15,18 @@
 %% API
 %%------------------------------------------------------------------------------
 
--spec op_cond(State, Op, CheckAfter) -> boolean() when
+-spec op_cond(State, Op, CheckAfter) -> Result when
     State :: #board_state{},
     Op :: operator(),
-    CheckAfter :: boolean().
+    CheckAfter :: boolean(),
+    Result :: ok | {error, Reason},
+    Reason :: any().
 op_cond(#board_state{} = State, Op, CheckAfter) ->
-    case check_not_equal(Op) andalso check_field_limits(Op) of
-        true ->
-            op_cond2(State, Op, CheckAfter);
-        false ->
-            false
+    case (check_not_equal(Op) andalso check_field_limits(Op)) of
+        ok ->
+            op_cond2(State, Op, CheckAfter)
+        Reason ->
+            Reason
     end.
 
 -spec start_board() -> #board_state{}.
