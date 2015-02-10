@@ -1,6 +1,8 @@
 -module(ec_board).
 
+-ifdef(NATIVE_COMPILE).
 -compile([native, inline, {inline_size, 300}]).
+-endif.
 
 -export([
     op_cond/3,
@@ -19,14 +21,18 @@
     State :: #board_state{},
     Op :: operator(),
     CheckAfter :: boolean(),
-    Result :: ok | {error, Reason},
-    Reason :: any().
+    Result :: op_cond_res().
 op_cond(#board_state{} = State, Op, CheckAfter) ->
-    case (check_not_equal(Op) andalso check_field_limits(Op)) of
+    case check_not_equal(Op) of
         ok ->
-            op_cond2(State, Op, CheckAfter)
-        Reason ->
-            Reason
+            case check_field_limits(Op) of
+                ok ->
+                    op_cond2(State, Op, CheckAfter);
+                {error, _} = Error ->
+                    Error
+            end;
+        {error, _} = Error ->
+            Error
     end.
 
 -spec start_board() -> #board_state{}.
@@ -54,7 +60,7 @@ init_board() ->
 %% Internal functions
 %%------------------------------------------------------------------------------
 
--spec op_cond2(State, Op, CheckAfter) -> boolean() when
+-spec op_cond2(State, Op, CheckAfter) -> op_cond_res() when
     State :: #board_state{},
     Op :: operator(),
     CheckAfter :: boolean().
@@ -62,19 +68,26 @@ op_cond2(#board_state{board = Board, to_move = ToMove} = State, Op,
          CheckAfter) ->
     case {get_piece(Board, element(1, Op)), get_piece(Board, element(2, Op))} of
         {?OO, _} ->
-            false;
+            %% can not move empty field
+            {error, {?ECE_EMPTY_FIELD, ?LINE}};
         {FromPiece, ToPiece} ->
+            %% check whether start and end pos have pieces with same colours
             case {color(FromPiece), color(ToPiece)} of
                 {?WHITE, ?WHITE} ->
-                    false;
+                    {error, {?ECE_SAME_COLOR, ?LINE}};
                 {?BLACK, ?BLACK} ->
-                    false;
+                    {error, {?ECE_SAME_COLOR, ?LINE}};
                 {Col, _} when Col =/= ToMove ->
-                    false;
+                    %% not your turn bastard
+                    {error, {?ECE_NOT_YOUR_TURN, ?LINE}};
                 {Col, _} ->
-                    op_cond3(FromPiece, State, Op) andalso
-                        (not CheckAfter or
-                             not check_chess_after_op(State, Op, Col))
+                    case CheckAfter andalso
+                         (ToPiece =:= ?BK orelse ToPiece =:= ?WK) of
+                        true ->
+                            {error, {?ECE_CANT_TAKE_KING, ?LINE}};
+                        false ->
+                            is_in_check(State, Op, CheckAfter, FromPiece, Col)
+                    end
             end
     end.
 
@@ -82,31 +95,42 @@ op_cond2(#board_state{board = Board, to_move = ToMove} = State, Op,
       State :: #board_state{},
       Op :: operator(),
       FromPiece :: integer(),
-      Result :: boolean().
+      Result :: op_cond_res().
 %% White pawn
 op_cond3(?WP, State, Op) ->
     Col = color(?WP),
-    is_pawn_simple_move(State, Op, Col) orelse is_pawn_take(State, Op, Col)
-        orelse is_en_passant(State, Op, Col);
+    case is_pawn_simple_move(State, Op, Col) orelse
+         is_pawn_take(State, Op, Col) orelse
+         is_en_passant(State, Op, Col) of
+        true ->
+            ok;
+        false ->
+            {error, {?ECE_NOT_VALID, ?LINE}}
+    end;
 %% White rook
 op_cond3(?WR, State, {{Fx, Fy}, {Tx, Ty}} = _Op) ->
     case Fx =:= Tx orelse Fy =:= Ty of
         true ->
             check_empty_fields_between(State#board_state.board, Fx, Fy, Tx, Ty);
         false ->
-            false
+            {error, {?ECE_NOT_VALID, ?LINE}}
     end;
 %% White knight
 op_cond3(?WN, _State, {{Fx, Fy}, {Tx, Ty}} = _Op) ->
-    (diff(Tx, Fx) =:= 1 andalso diff(Ty, Fy) =:= 2) orelse
-       (diff(Tx, Fx) =:= 2 andalso diff(Ty, Fy) =:= 1);
+    case (diff(Tx, Fx) =:= 1 andalso diff(Ty, Fy) =:= 2) orelse
+         (diff(Tx, Fx) =:= 2 andalso diff(Ty, Fy) =:= 1) of
+        true ->
+            ok;
+        false ->
+            {error, {?ECE_NOT_VALID, ?LINE}}
+    end;
 %% White bishop
 op_cond3(?WB, State, {{Fx, Fy}, {Tx, Ty}} = _Op) ->
     case diff(Fx, Tx) =:= diff(Fy, Ty) of
         true ->
             check_empty_fields_between(State#board_state.board, Fx, Fy, Tx, Ty);
         false ->
-            false
+            {error, {?ECE_NOT_VALID, ?LINE}}
     end;
 %% White queen
 op_cond3(?WQ, State, {{Fx, Fy}, {Tx, Ty}} = _Op) ->
@@ -114,37 +138,56 @@ op_cond3(?WQ, State, {{Fx, Fy}, {Tx, Ty}} = _Op) ->
         true ->
             check_empty_fields_between(State#board_state.board, Fx, Fy, Tx, Ty);
         false ->
-            false
+            {error, {?ECE_NOT_VALID, ?LINE}}
     end;
 %% White king
-op_cond3(?WK, _State, {{Fx, Fy}, {Tx, Ty}} = _Op) ->
+op_cond3(?WK, State, {{Fx, Fy}, {Tx, Ty}} = Op) ->
     Dx = diff(Fx, Tx),
     Dy = diff(Fy, Ty),
-    (Dx =:= 1 orelse Dx =:= 0) andalso (Dy =:= 1 orelse Dy =:= 0);
+    case (Dx =:= 1 orelse Dx =:= 0) andalso (Dy =:= 1 orelse Dy =:= 0) of
+        true ->
+            ok;
+        false ->
+            case is_castle(State, Op) of
+                true -> ok;
+                false -> {error, {?ECE_NOT_VALID, ?LINE}}
+            end
+    end;
 %% Black pawn
 op_cond3(?BP, State, Op) ->
     Col = color(?BP),
-    is_pawn_simple_move(State, Op, Col) orelse is_pawn_take(State, Op, Col)
-        orelse is_en_passant(State, Op, Col);
+    case is_pawn_simple_move(State, Op, Col) orelse
+         is_pawn_take(State, Op, Col) orelse
+         is_en_passant(State, Op, Col) of
+        true ->
+            ok;
+        false ->
+            {error, {?ECE_NOT_VALID, ?LINE}}
+    end;
 %% Black rook
 op_cond3(?BR, State, {{Fx, Fy}, {Tx, Ty}} = _Op) ->
     case Fx =:= Tx orelse Fy =:= Ty of
         true ->
             check_empty_fields_between(State#board_state.board, Fx, Fy, Tx, Ty);
         false ->
-            false
+            {error, {?ECE_NOT_VALID, ?LINE}}
     end;
 %% Black knight
 op_cond3(?BN, _State, {{Fx, Fy}, {Tx, Ty}} = _Op) ->
-    (diff(Tx, Fx) =:= 1 andalso diff(Ty, Fy) =:= 2) orelse
-       (diff(Tx, Fx) =:= 2 andalso diff(Ty, Fy) =:= 1);
+    case (diff(Tx, Fx) =:= 1 andalso diff(Ty, Fy) =:= 2) orelse
+         (diff(Tx, Fx) =:= 2 andalso diff(Ty, Fy) =:= 1) of
+        true ->
+            ok;
+        false ->
+            {error, {?ECE_NOT_VALID, ?LINE}}
+    end;
 %% Black bishop
 op_cond3(?BB, State, {{Fx, Fy}, {Tx, Ty}} = _Op) ->
     case diff(Fx, Tx) =:= diff(Fy, Ty) of
         true ->
             check_empty_fields_between(State#board_state.board, Fx, Fy, Tx, Ty);
         false ->
-            false
+            {error, {?ECE_NOT_VALID, ?LINE}}
     end;
 %% Black queen
 op_cond3(?BQ, State, {{Fx, Fy}, {Tx, Ty}} = _Op) ->
@@ -152,13 +195,21 @@ op_cond3(?BQ, State, {{Fx, Fy}, {Tx, Ty}} = _Op) ->
         true ->
             check_empty_fields_between(State#board_state.board, Fx, Fy, Tx, Ty);
         false ->
-            false
+            {error, {?ECE_NOT_VALID, ?LINE}}
     end;
 %% Black king
-op_cond3(?BK, _State, {{Fx, Fy}, {Tx, Ty}} = _Op) ->
+op_cond3(?BK, State, {{Fx, Fy}, {Tx, Ty}} = Op) ->
     Dx = diff(Fx, Tx),
     Dy = diff(Fy, Ty),
-    (Dx =:= 1 orelse Dx =:= 0) andalso (Dy =:= 1 orelse Dy =:= 0).
+    case (Dx =:= 1 orelse Dx =:= 0) andalso (Dy =:= 1 orelse Dy =:= 0) of
+        true ->
+            ok;
+        false ->
+            case is_castle(State, Op) of
+                true -> ok;
+                false -> {error, {?ECE_NOT_VALID, ?LINE}}
+            end
+    end.
 
 -spec get_piece(Board :: board(), Pos :: position() | integer()) -> integer().
 get_piece(Board, {X, Y}) ->
@@ -167,7 +218,7 @@ get_piece(Board, {X, Y}) ->
 
 %%------------------------------------------------------------------------------
 %% @doc Returns true only if all the fields not counting the start and stop
-%%      positions are empty between the fwo coordinates
+%%      positions are empty between the two coordinates
 %%------------------------------------------------------------------------------
 -spec check_empty_fields_between(Board, Fx, Fy, Tx, Ty) -> Result when
       Board :: board(),
@@ -175,11 +226,16 @@ get_piece(Board, {X, Y}) ->
       Fy :: integer(),
       Tx :: integer(),
       Ty :: integer(),
-      Result :: boolean().
+      Result :: op_cond_res().
 check_empty_fields_between(Board, Fx, Fy, Tx, Ty) ->
     Dx = get_direction(Fx, Tx),
     Dy = get_direction(Fy, Ty),
-    check_empty_fields(Board, Fx + Dx, Fy + Dy, Dx, Dy, Tx, Ty).
+    case check_empty_fields(Board, Fx + Dx, Fy + Dy, Dx, Dy, Tx, Ty) of
+        true ->
+            ok;
+        false ->
+            {error, {?ECE_PIECE_ON_PATH, ?LINE}}
+    end.
 
 check_empty_fields(_Board, CurX, CurY, _DX, _DY, TX, TY) when
       CurX =:= TX, CurY =:= TY ->
@@ -188,7 +244,7 @@ check_empty_fields(Board, CurX, CurY, DX, DY, TX, TY) ->
     case get_piece(Board, {CurX, CurY}) of
         ?OO ->
             check_empty_fields(Board, CurX + DX, CurY + DY, DX, DY, TX, TY);
-        _ ->
+        _Other ->
             false
     end.
 
@@ -214,21 +270,52 @@ color(?BK) -> ?BLACK.
 diff(X, Y) when X > Y -> X - Y;
 diff(X, Y) -> Y - X.
 
--spec check_not_equal(Op :: operator()) -> boolean().
-check_not_equal({{Fx, Fy}, {Fx, Fy}} = _Op) -> false;
-check_not_equal(_Op) -> true.
+-spec check_not_equal(Op :: operator()) -> op_cond_res().
+check_not_equal({{Fx, Fy}, {Fx, Fy}} = _Op) ->
+    {error, {?ECE_SAME_FIELDS, ?LINE}};
+check_not_equal(_Op) ->
+    ok.
 
--spec check_field_limits(Op :: operator()) ->
-    boolean().
+-spec check_field_limits(Op :: operator()) -> op_cond_res().
 check_field_limits({{Fx, Fy}, {Tx, Ty}} = _Op) ->
-    between(Fx, 1, 8) andalso between(Fy, 1, 8) andalso between(Tx, 1, 8)
-        andalso between(Ty, 1, 8).
+    case between(Fx, 1, 8) andalso between(Fy, 1, 8) andalso
+         between(Tx, 1, 8) andalso between(Ty, 1, 8) of
+        true -> ok;
+        false -> {error, {?ECE_OUT_OF_RANGE, ?LINE}}
+    end.
 
 between(V, Min, Max) when V >= Min, V =< Max -> true;
 between(_V, _Min, _Max) -> false.
 
+-spec is_in_check(State, Op, CheckAfter, FromPiece, Col) -> Result when
+    State :: #board_state{},
+    Op :: operator(),
+    CheckAfter :: boolean(),
+    FromPiece :: chess_piece(),
+    Col :: color(),
+    Result :: op_cond_res().
+is_in_check(State, Op, CheckAfter, FromPiece, Col) ->
+    case CheckAfter of
+        false ->
+            %% don't check whether after operator we moved into
+            %% check
+            op_cond3(FromPiece, State, Op);
+        true ->
+            case op_cond3(FromPiece, State, Op) of
+                ok ->
+                    case check_chess_after_op(State, Op, Col) of
+                        true ->
+                            {error, {?ECE_CHECK_AFTER_MOVE, ?LINE}};
+                        false ->
+                            ok
+                    end;
+                {error, _} = Error ->
+                    Error
+            end
+    end.
+
 %% Returns true if after applying the operator the player who had to move is in
-%% chess
+%% check
 -spec check_chess_after_op(State, Op, Color) -> Result when
     State :: #board_state{},
     Op :: operator(),
@@ -243,6 +330,12 @@ check_chess_after_op(State, Op, Col) ->
     KingPos = find_first_piece(NewState#board_state.board, King),
     is_in_check(1, NewState, KingPos, ?NEG_COL(Col)).
 
+-spec is_in_check(Pos, State, KingPos, OppCol) -> Result when
+    Pos :: pos_integer(),
+    State :: #board_state{},
+    KingPos :: position(),
+    OppCol :: color(),
+    Result :: boolean().
 is_in_check(65, _State, _KingPos, _OppCol) ->
     false;
 is_in_check(C, State, KingPos, OppCol) ->
@@ -252,8 +345,8 @@ is_in_check(C, State, KingPos, OppCol) ->
         true ->
             Op = {FromPos, KingPos},
             case op_cond(State, Op, _CheckAfter = false) of
-                true -> true;
-                false -> is_in_check(C + 1, State, KingPos, OppCol)
+                ok -> true;
+                {error, _} -> is_in_check(C + 1, State, KingPos, OppCol)
             end;
         false ->
             is_in_check(C + 1, State, KingPos, OppCol)
@@ -436,7 +529,6 @@ is_pawn_take(State, {{Fx, Fy}, {Tx, Ty}} = _Op, ?BLACK)
 is_pawn_take(_State, _Op, _Col) ->
     false.
 
-
 %% TODO
 %% True when it is an en passant move
 -spec is_en_passant(State, Op, Col) -> Result when
@@ -447,13 +539,17 @@ is_pawn_take(_State, _Op, _Col) ->
 is_en_passant(State, {{Fx, Fy}, {Tx, Ty}} = _Op, _Col = ?WHITE) ->
     case Ty - Fy =:= 1 andalso abs(Fx - Tx) =:= 1 andalso Ty =:= 6 of
         true ->
-            {{_LFx, _LFy}, {LTx, LTy}} = State#board_state.last_move,
-            case Tx =:= LTx andalso Ty =:= LTy + 1 of
-                true ->
-                    Board = State#board_state.board,
-                    get_piece(Board, {LTx, LTy}) =:= ?BP;
-                false ->
-                    false
+            case State#board_state.last_move of
+                undefined ->
+                    false;
+                {{_LFx, _LFy}, {LTx, LTy}} ->
+                    case Tx =:= LTx andalso Ty =:= LTy + 1 of
+                        true ->
+                            Board = State#board_state.board,
+                            get_piece(Board, {LTx, LTy}) =:= ?BP;
+                        false ->
+                            false
+                    end
             end;
         false ->
             false
@@ -461,17 +557,98 @@ is_en_passant(State, {{Fx, Fy}, {Tx, Ty}} = _Op, _Col = ?WHITE) ->
 is_en_passant(State, {{Fx, Fy}, {Tx, Ty}} = _Op, _Col = ?BLACK) ->
     case Ty - Fy =:= -1 andalso abs(Fx - Tx) =:= 1 andalso Ty =:= 3 of
         true ->
-            {{_LFx, _LFy}, {LTx, LTy}} = State#board_state.last_move,
-            case Tx =:= LTx andalso Ty =:= LTy - 1 of
-                true ->
-                    Board = State#board_state.board,
-                    get_piece(Board, {LTx, LTy}) =:= ?BP;
-                false ->
-                    false
+            case State#board_state.last_move of
+                {{_LFx, _LFy}, {LTx, LTy}} ->
+                    case Tx =:= LTx andalso Ty =:= LTy - 1 of
+                        true ->
+                            Board = State#board_state.board,
+                            get_piece(Board, {LTx, LTy}) =:= ?BP;
+                        false ->
+                            false
+                    end
             end;
         false ->
             false
     end.
+
+-spec is_castle(State, Op) -> Result when
+    State :: #board_state{},
+    Op :: operator(),
+    Result :: boolean().
+%% White short castle
+is_castle(#board_state{to_move = ?WHITE, wk_castled = false, board = B} = State,
+          {{5, 1}, {7, 1}} = Op) when ?GET_PIECE(B, 8, 1) =:= ?WR ->
+    Nb1 = set_field(B, 5, 1, ?OO),
+    Nb2 = set_field(Nb1, 6, 1, ?WK),
+    Ns = State#board_state{
+            wk_castled = true,
+            to_move = ?BLACK,
+            last_move = Op,
+            board = Nb2
+         },
+    Ns2 = State#board_state{
+            wk_castled = true,
+            to_move = ?BLACK,
+            last_move = op
+          },
+    (not is_in_check(1, Ns, {6,1}, ?BLACK)) andalso
+        (not is_in_check(1, Ns2, {5,1}, ?BLACK));
+%% White long castle
+is_castle(#board_state{to_move = ?WHITE, wk_castled = false, board = B} = State,
+          {{5, 1}, {3, 1}} = Op) when ?GET_PIECE(B, 1, 1) =:= ?WR ->
+    Nb1 = set_field(B, 5, 1, ?OO),
+    Nb2 = set_field(Nb1, 4, 1, ?WK),
+    Ns = State#board_state{
+            wk_castled = true,
+            to_move = ?BLACK,
+            last_move = Op,
+            board = Nb2
+         },
+    Ns2 = State#board_state{
+            wk_castled = true,
+            to_move = ?BLACK,
+            last_move = op
+          },
+    (not is_in_check(1, Ns, {4,1}, ?BLACK)) andalso
+        (not is_in_check(1, Ns2, {5,1}, ?BLACK));
+%% Black short castle
+is_castle(#board_state{to_move = ?BLACK, bk_castled = false, board = B} = State,
+          {{5, 8}, {7, 8}} = Op) when ?GET_PIECE(B, 8, 8) =:= ?BR ->
+    Nb1 = set_field(B, 5, 8, ?OO),
+    Nb2 = set_field(Nb1, 6, 8, ?BK),
+    Ns = State#board_state{
+            bk_castled = true,
+            to_move = ?WHITE,
+            last_move = Op,
+            board = Nb2
+         },
+    Ns2 = State#board_state{
+            wk_castled = true,
+            to_move = ?WHITE,
+            last_move = op
+          },
+    (not is_in_check(1, Ns, {6,8}, ?WHITE)) andalso
+        (not is_in_check(1, Ns2, {5,8}, ?WHITE));
+%% Black long castle
+is_castle(#board_state{to_move = ?BLACK, bk_castled = false, board = B} = State,
+          {{5, 8}, {3, 8}} = Op) when ?GET_PIECE(B, 1, 8) =:= ?BR ->
+    Nb1 = set_field(B, 5, 8, ?OO),
+    Nb2 = set_field(Nb1, 4, 8, ?BK),
+    Ns = State#board_state{
+            bk_castled = true,
+            to_move = ?WHITE,
+            last_move = Op,
+            board = Nb2
+         },
+    Ns2 = State#board_state{
+            wk_castled = true,
+            to_move = ?WHITE,
+            last_move = op
+          },
+    (not is_in_check(1, Ns, {4,8}, ?WHITE)) andalso
+        (not is_in_check(1, Ns2, {5,8}, ?WHITE));
+is_castle(#board_state{} = _St, _Op) ->
+    false.
 
 
 

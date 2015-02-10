@@ -3,7 +3,9 @@
 %%------------------------------------------------------------------------------
 -module(ec_eval).
 
+-ifdef(NATIVE_COMPILE).
 -compile([native, inline, {inline_size, 300}]).
+-endif.
 
 -export([eval/1]).
 

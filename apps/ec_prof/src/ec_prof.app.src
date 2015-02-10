@@ -1,0 +1,12 @@
+{application, ec_prof,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { ec_prof_app, []}},
+  {env, []}
+ ]}.

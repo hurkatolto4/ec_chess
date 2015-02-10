@@ -27,9 +27,12 @@
 -define(BLACK, 1).
 -define(EMPTY, 2).
 
--define(POS(X, Y),  ((8 - Y) * 8 + 9 - X)).
--define(UN_POS(P),  {8 - (P - 1) rem 8  , 8 - (P - 1) div 8}).
+-define(POS(X, Y),  ((8 - Y) * 8 + X)).
+-define(UN_POS(P),  {(P - 1) rem 8 + 1  , 8 - (P - 1) div 8}).
 -define(NEG_COL(C), 1 - C).
+-define(GET_PIECE(Board, X, Y),
+    element(?POS(X, Y), Board)
+).
 
 %% Errors occuring during calculations
 -define(ERR_NO_SUCH_PIECE, 1).
@@ -68,5 +71,20 @@
     last_move  = undefined      :: undefined | operator(),
     board      = undefined      :: undefined | board()
 }).
+
+%%
+%% Error values given back by ec_board
+%%
+-define(ECE_SAME_FIELDS, same_fields).
+-define(ECE_OUT_OF_RANGE, out_of_range).
+-define(ECE_EMPTY_FIELD, empty_field).
+-define(ECE_SAME_COLOR, same_color).
+-define(ECE_NOT_YOUR_TURN, not_your_turn).
+-define(ECE_NOT_VALID, not_valid).
+-define(ECE_CHECK_AFTER_MOVE, check_after_move).
+-define(ECE_PIECE_ON_PATH, piece_on_path).
+-define(ECE_CANT_TAKE_KING, cant_take_king).
+
+-type op_cond_res() :: ok | {error, {Reason :: atom(), Line :: integer()}}.
 
 -endif.
