@@ -8,7 +8,8 @@
     op_cond/3,
     init_board/0,
     start_board/0,
-    is_check_mate/1
+    is_check_mate/1,
+    is_stale_mate/1
 ]).
 
 -include("ec.hrl").
@@ -71,6 +72,19 @@ is_check_mate(#board_state{to_move = ToMove} = State) ->
     IsInCheck = is_in_check(1, State#board_state{to_move = ?NEG_COL(ToMove)},
                             KingPos, ?NEG_COL(ToMove)),
     IsInCheck andalso cant_move_out_from_check(1, State).
+
+-spec is_stale_mate(State) -> Result when
+    State :: #board_state{},
+    Result :: boolean().
+is_stale_mate(#board_state{to_move = ToMove} = State) ->
+    King = case ToMove of
+               ?WHITE -> ?WK;
+               ?BLACK -> ?BK
+           end,
+    KingPos = find_first_piece(State#board_state.board, King),
+    IsInCheck = is_in_check(1, State#board_state{to_move = ?NEG_COL(ToMove)},
+                            KingPos, ?NEG_COL(ToMove)),
+    (not IsInCheck) andalso cant_move_out_from_check(1, State).
 
 %%------------------------------------------------------------------------------
 %% Internal functions
@@ -691,6 +705,4 @@ is_castle(#board_state{to_move = ?BLACK, bk_castled = false, board = B} = State,
         (not is_in_check(1, Ns2, {5,8}, ?WHITE));
 is_castle(#board_state{} = _St, _Op) ->
     false.
-
-
 

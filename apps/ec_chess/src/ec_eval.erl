@@ -18,9 +18,21 @@
 
 -spec eval(State :: #board_state{}) -> Result :: integer().
 eval(State) ->
-    #board_state{to_move = _ToMove,
+    #board_state{to_move = ToMove,
                  board = Board} = State,
-    eval_board(1, Board, 0).
+    case ec_board:is_check_mate(State) of
+        true ->
+            %% one of the players is mated
+            case ToMove of
+                ?BLACK -> ?MATE_VALUE;
+                ?WHITE -> -?MATE_VALUE
+            end;
+        false ->
+            case ec_board:is_stale_mate(State) of
+                true -> 0;
+                false -> eval_board(1, Board, 0)
+            end
+    end.
 
 %%------------------------------------------------------------------------------
 %% Internal functions

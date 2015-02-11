@@ -16,6 +16,10 @@
         ?assertEqual(Exp, ec_board:is_check_mate(State))
     ).
 
+-define(smtest(Exp, State),
+        ?assertEqual(Exp, ec_board:is_stale_mate(State))
+    ).
+
 init_test() ->
     St = ec_board:start_board(),
 
@@ -317,5 +321,40 @@ mate_4_test() ->
                      ?OO, ?OO, ?OO, ?OO, ?WK, ?OO, ?OO, ?OO}
         },
     ?mtest(false, St).
+
+stale_mate_1_test() ->
+    St = #board_state{
+            wk_castled = false,
+            bk_castled = false,
+            to_move = ?WHITE,
+            last_move = undefined,
+            board = {?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?BR, ?BK, ?BR, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?WK, ?OO, ?OO, ?OO}
+        },
+    ?smtest(true, St).
+
+%% if the king is currently in check stale mate is not true
+stale_mate_2_test() ->
+    St = #board_state{
+            wk_castled = false,
+            bk_castled = false,
+            to_move = ?WHITE,
+            last_move = undefined,
+            board = {?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?BK, ?BR, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?BR, ?OO, ?WK, ?OO, ?OO, ?OO}
+        },
+    ?smtest(false, St).
 
 -endif.

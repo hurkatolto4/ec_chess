@@ -7,6 +7,8 @@
 %% Defines
 %%
 
+-define(MATE_VALUE, 1000000).
+
 %% Field values
 -define(OO, 0).
 -define(WP, 1).
