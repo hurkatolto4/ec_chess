@@ -64,9 +64,9 @@ init_board() ->
     State :: #board_state{},
     Op :: operator(),
     CheckAfter :: boolean().
-op_cond2(#board_state{board = Board, to_move = ToMove} = State, Op,
-         CheckAfter) ->
-    case {get_piece(Board, element(1, Op)), get_piece(Board, element(2, Op))} of
+op_cond2(#board_state{board = Board, to_move = ToMove} = State,
+         {{Fx, Fy}, {Tx, Ty}} = Op, CheckAfter) ->
+    case {?GET_PIECE(Board, Fx, Fy), ?GET_PIECE(Board, Tx, Ty)} of
         {?OO, _} ->
             %% can not move empty field
             {error, {?ECE_EMPTY_FIELD, ?LINE}};
@@ -211,11 +211,6 @@ op_cond3(?BK, State, {{Fx, Fy}, {Tx, Ty}} = Op) ->
             end
     end.
 
--spec get_piece(Board :: board(), Pos :: position() | integer()) -> integer().
-get_piece(Board, {X, Y}) ->
-    Pos = ?POS(X, Y),
-    element(Pos, Board).
-
 %%------------------------------------------------------------------------------
 %% @doc Returns true only if all the fields not counting the start and stop
 %%      positions are empty between the two coordinates
@@ -241,7 +236,7 @@ check_empty_fields(_Board, CurX, CurY, _DX, _DY, TX, TY) when
       CurX =:= TX, CurY =:= TY ->
     true;
 check_empty_fields(Board, CurX, CurY, DX, DY, TX, TY) ->
-    case get_piece(Board, {CurX, CurY}) of
+    case ?GET_PIECE(Board, CurX, CurY) of
         ?OO ->
             check_empty_fields(Board, CurX + DX, CurY + DY, DX, DY, TX, TY);
         _Other ->
@@ -339,8 +334,8 @@ check_chess_after_op(State, Op, Col) ->
 is_in_check(65, _State, _KingPos, _OppCol) ->
     false;
 is_in_check(C, State, KingPos, OppCol) ->
-    FromPos = ?UN_POS(C),
-    Col = color(get_piece(State#board_state.board, FromPos)),
+    {Fx, Fy} = FromPos = ?UN_POS(C),
+    Col = color(?GET_PIECE(State#board_state.board, Fx, Fy)),
     case Col =:= OppCol of
         true ->
             Op = {FromPos, KingPos},
@@ -357,7 +352,7 @@ is_in_check(C, State, KingPos, OppCol) ->
       Op :: operator(),
       NewState :: #board_state{}.
 apply_op(State, {{Fx, Fy}, {_Tx, _Ty}} = Op) ->
-    Piece = get_piece(State#board_state.board, {Fx, Fy}),
+    Piece = ?GET_PIECE(State#board_state.board, Fx, Fy),
     case get_castle_type(Piece, Op) of
         ?CASTLE_WHITE_SHORT -> apply_castle_white_short(State, Op);
         ?CASTLE_WHITE_LONG  -> apply_castle_white_long(State, Op);
@@ -387,7 +382,7 @@ get_castle_type(_Piece, _Op) ->        ?CASTLE_NOT.
     NewState :: #board_state{}.
 apply_en_passant(State, {{Fx, Fy}, {Tx, Ty}} = Op) ->
     Board = State#board_state.board,
-    Piece = get_piece(Board, {Fx, Fy}),
+    Piece = ?GET_PIECE(Board, Fx, Fy),
     Nb1 = set_field(Board, Fx, Fy, ?OO),
     Nb2 = set_field(Nb1, Tx, Ty, Piece),
     Nb3 = set_field(Nb2, Tx, Fy, ?OO),
@@ -399,7 +394,7 @@ apply_en_passant(State, {{Fx, Fy}, {Tx, Ty}} = Op) ->
 
 apply_simple(State, {{Fx, Fy}, {Tx, Ty}} = Op) ->
     #board_state{to_move = ToMove, board = Board} = State,
-    Piece = get_piece(State#board_state.board, {Fx, Fy}),
+    Piece = ?GET_PIECE(State#board_state.board, Fx, Fy),
     Nb1 = set_field(Board, Fx, Fy, ?OO),
     Nb2 = set_field(Nb1, Tx, Ty, Piece),
     State#board_state{
@@ -500,17 +495,17 @@ find_first_piece(Pos, Board, Cp) ->
       Result :: boolean().
 is_pawn_simple_move(State, {{Fx, Fy}, {Tx, Ty}} = _Op, ?WHITE) when Fx =:= Tx ->
     B = State#board_state.board,
-    Result = (Ty - Fy =:= 1 andalso color(get_piece(B, {Tx, Ty})) =:= ?EMPTY) orelse
+    Result = (Ty - Fy =:= 1 andalso color(?GET_PIECE(B, Tx, Ty)) =:= ?EMPTY) orelse
         (Ty - Fy =:= 2 andalso Fy =:= 2 andalso
-            color(get_piece(B, {Tx, Ty})) =:= ?EMPTY andalso
-            color(get_piece(B, {Tx, Ty - 1})) =:= ?EMPTY),
+            color(?GET_PIECE(B, Tx, Ty)) =:= ?EMPTY andalso
+            color(?GET_PIECE(B, Tx, Ty - 1)) =:= ?EMPTY),
     Result;
 is_pawn_simple_move(State, {{Fx, Fy}, {Tx, Ty}} = _Op, ?BLACK) when Fx =:= Tx ->
     B = State#board_state.board,
-    (Ty - Fy =:= -1 andalso color(get_piece(B, {Tx, Ty})) =:= ?EMPTY) orelse
+    (Ty - Fy =:= -1 andalso color(?GET_PIECE(B, Tx, Ty)) =:= ?EMPTY) orelse
         (Ty - Fy =:= -2 andalso Fy =:= 7 andalso
-            color(get_piece(B, {Tx, Ty})) =:= ?EMPTY andalso
-            color(get_piece(B, {Tx, Ty + 1})) =:= ?EMPTY);
+            color(?GET_PIECE(B, Tx, Ty)) =:= ?EMPTY andalso
+            color(?GET_PIECE(B, Tx, Ty + 1)) =:= ?EMPTY);
 is_pawn_simple_move(_State, _Op, _Col) ->
     false.
 
@@ -522,10 +517,10 @@ is_pawn_simple_move(_State, _Op, _Col) ->
       Result :: boolean().
 is_pawn_take(State, {{Fx, Fy}, {Tx, Ty}} = _Op, ?WHITE)
   when abs(Fx - Tx) =:= 1, Ty - Fy =:= 1 ->
-    color(get_piece(State#board_state.board, {Tx, Ty})) =:= ?BLACK;
+    color(?GET_PIECE(State#board_state.board, Tx, Ty)) =:= ?BLACK;
 is_pawn_take(State, {{Fx, Fy}, {Tx, Ty}} = _Op, ?BLACK)
   when abs(Fx - Tx) =:= 1, Ty - Fy =:= -1 ->
-    color(get_piece(State#board_state.board, {Tx, Ty})) =:= ?WHITE;
+    color(?GET_PIECE(State#board_state.board, Tx, Ty)) =:= ?WHITE;
 is_pawn_take(_State, _Op, _Col) ->
     false.
 
@@ -546,7 +541,7 @@ is_en_passant(State, {{Fx, Fy}, {Tx, Ty}} = _Op, _Col = ?WHITE) ->
                     case Tx =:= LTx andalso Ty =:= LTy + 1 of
                         true ->
                             Board = State#board_state.board,
-                            get_piece(Board, {LTx, LTy}) =:= ?BP;
+                            ?GET_PIECE(Board, LTx, LTy) =:= ?BP;
                         false ->
                             false
                     end
@@ -562,7 +557,7 @@ is_en_passant(State, {{Fx, Fy}, {Tx, Ty}} = _Op, _Col = ?BLACK) ->
                     case Tx =:= LTx andalso Ty =:= LTy - 1 of
                         true ->
                             Board = State#board_state.board,
-                            get_piece(Board, {LTx, LTy}) =:= ?BP;
+                            ?GET_PIECE(Board, LTx, LTy) =:= ?BP;
                         false ->
                             false
                     end
@@ -589,7 +584,7 @@ is_castle(#board_state{to_move = ?WHITE, wk_castled = false, board = B} = State,
     Ns2 = State#board_state{
             wk_castled = true,
             to_move = ?BLACK,
-            last_move = op
+            last_move = Op
           },
     (not is_in_check(1, Ns, {6,1}, ?BLACK)) andalso
         (not is_in_check(1, Ns2, {5,1}, ?BLACK));
@@ -607,7 +602,7 @@ is_castle(#board_state{to_move = ?WHITE, wk_castled = false, board = B} = State,
     Ns2 = State#board_state{
             wk_castled = true,
             to_move = ?BLACK,
-            last_move = op
+            last_move = Op
           },
     (not is_in_check(1, Ns, {4,1}, ?BLACK)) andalso
         (not is_in_check(1, Ns2, {5,1}, ?BLACK));
@@ -625,7 +620,7 @@ is_castle(#board_state{to_move = ?BLACK, bk_castled = false, board = B} = State,
     Ns2 = State#board_state{
             wk_castled = true,
             to_move = ?WHITE,
-            last_move = op
+            last_move = Op
           },
     (not is_in_check(1, Ns, {6,8}, ?WHITE)) andalso
         (not is_in_check(1, Ns2, {5,8}, ?WHITE));
@@ -643,7 +638,7 @@ is_castle(#board_state{to_move = ?BLACK, bk_castled = false, board = B} = State,
     Ns2 = State#board_state{
             wk_castled = true,
             to_move = ?WHITE,
-            last_move = op
+            last_move = Op
           },
     (not is_in_check(1, Ns, {4,8}, ?WHITE)) andalso
         (not is_in_check(1, Ns2, {5,8}, ?WHITE));

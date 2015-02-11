@@ -39,7 +39,7 @@ xref:		compile
 
 check: xref dialyze
 
-perftest:	compile
+perftest:	clean compile
 	escript -c ./apps/ec_perftest/scripts/perftest.escript
 
 fprof:		clean erlang_compile
