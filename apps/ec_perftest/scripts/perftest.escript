@@ -10,5 +10,3 @@ main([]) ->
     ec_board_perftest:start(100000),
     io:format("\n************* ec_eval tests\n"),
     ec_eval_perftest:start(100000).
-    
-

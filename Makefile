@@ -5,17 +5,17 @@ DIALYZER_APPS = \
 
 # some modules which use the native option will be native compiled
 compile:
-	rebar -D NATIVE_COMPILE compile
+	./rebar -D NATIVE_COMPILE compile
 
 # native compiling is disabled. Used for profiling.
 erlang_compile:
-	rebar compile
+	./rebar compile
 
 doc:	compile
 	./rebar skip_deps=true doc
 
 eunit:	compile
-		./rebar eunit
+	./rebar eunit
 
 generate: 	compile
 	./rebar generate
