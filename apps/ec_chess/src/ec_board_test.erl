@@ -12,6 +12,10 @@
         ?assertMatch(Exp, ec_board:op_cond(State, Op, true))
     ).
 
+-define(mtest(Exp, State),
+        ?assertEqual(Exp, ec_board:is_check_mate(State))
+    ).
+
 init_test() ->
     St = ec_board:start_board(),
 
@@ -244,5 +248,74 @@ board_10_test() ->
         },
     ?octest({error, {?ECE_NOT_VALID, _}}, St, {{5,8},{7,8}}),
     ?octest({error, {?ECE_NOT_VALID, _}}, St, {{5,8},{3,8}}).
+
+mate_1_test() ->
+    St = #board_state{
+            wk_castled = false,
+            bk_castled = false,
+            to_move = ?BLACK,
+            last_move = undefined,
+            board = {?WR, ?OO, ?OO, ?OO, ?BK, ?OO, ?OO, ?OO,
+                     ?OO, ?WR, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?WK, ?OO, ?OO, ?OO}
+        },
+    ?mtest(true, St).
+
+mate_2_test() ->
+    St = #board_state{
+            wk_castled = false,
+            bk_castled = false,
+            to_move = ?WHITE,
+            last_move = undefined,
+            board = {?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?BK, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?BR, ?OO, ?WK, ?OO, ?OO, ?OO}
+        },
+    ?mtest(true, St).
+
+mate_3_test() ->
+    St = #board_state{
+            wk_castled = false,
+            bk_castled = false,
+            to_move = ?WHITE,
+            last_move = undefined,
+            board = {?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?BK, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?BR, ?OO, ?OO, ?WK, ?OO, ?OO}
+        },
+    ?mtest(false, St).
+
+%% white is not in check currently but he can't move (stalemate)
+mate_4_test() ->
+    St = #board_state{
+            wk_castled = false,
+            bk_castled = false,
+            to_move = ?WHITE,
+            last_move = undefined,
+            board = {?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?BR, ?BK, ?BR, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
+                     ?OO, ?OO, ?OO, ?OO, ?WK, ?OO, ?OO, ?OO}
+        },
+    ?mtest(false, St).
 
 -endif.

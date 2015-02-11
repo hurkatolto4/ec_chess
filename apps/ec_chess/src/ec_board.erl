@@ -7,7 +7,8 @@
 -export([
     op_cond/3,
     init_board/0,
-    start_board/0
+    start_board/0,
+    is_check_mate/1
 ]).
 
 -include("ec.hrl").
@@ -55,6 +56,21 @@ init_board() ->
      ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO, ?OO,
      ?WP, ?WP, ?WP, ?WP, ?WP, ?WP, ?WP, ?WP,
      ?WR, ?WN, ?WB, ?WQ, ?WK, ?WB, ?WN, ?WR}.
+
+-spec is_check_mate(State) -> Result when
+    State :: #board_state{},
+    Result :: boolean().
+is_check_mate(#board_state{to_move = ToMove} = State) ->
+    %% check mate: if actually in check and there is no operator which
+    %% takes us out from check
+    King = case ToMove of
+               ?WHITE -> ?WK;
+               ?BLACK -> ?BK
+           end,
+    KingPos = find_first_piece(State#board_state.board, King),
+    IsInCheck = is_in_check(1, State#board_state{to_move = ?NEG_COL(ToMove)},
+                            KingPos, ?NEG_COL(ToMove)),
+    IsInCheck andalso cant_move_out_from_check(1, State).
 
 %%------------------------------------------------------------------------------
 %% Internal functions
@@ -345,6 +361,37 @@ is_in_check(C, State, KingPos, OppCol) ->
             end;
         false ->
             is_in_check(C + 1, State, KingPos, OppCol)
+    end.
+
+-spec cant_move_out_from_check(Pos, State) -> Result when
+    Pos :: pos_integer(),
+    State :: #board_state{},
+    Result :: boolean().
+cant_move_out_from_check(65, _State) ->
+    true;
+cant_move_out_from_check(FromPos, State) ->
+    case cant_move_out_from_check(FromPos, 1, State) of
+        false -> false;
+        true -> cant_move_out_from_check(FromPos + 1, State)
+    end.
+
+-spec cant_move_out_from_check(FromPos, ToPos, State) -> Result when
+    FromPos :: pos_integer(),
+    ToPos :: pos_integer(),
+    State :: #board_state{},
+    Result :: boolean().
+cant_move_out_from_check(_FromPos, 65, _State) ->
+    true;
+cant_move_out_from_check(FromPos, ToPos, State) ->
+    From = ?UN_POS(FromPos),
+    To = ?UN_POS(ToPos),
+    Op = {From, To},
+    case op_cond(State, Op, true) of
+        ok ->
+            %% found operator which brings us out from check
+            false;
+        {error, _Reason} ->
+            cant_move_out_from_check(FromPos, ToPos + 1, State)
     end.
 
 -spec apply_op(State, Op) -> NewState when
