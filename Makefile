@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 DIALYZER_APPS = \
-	erts kernel stdlib crypto public_key inets xmerl sasl mnesia
+	erts kernel stdlib crypto public_key inets xmerl sasl
 
 # some modules which use the native option will be native compiled
 compile:
