@@ -37,7 +37,8 @@ op_cond(#board_state{} = State, Op, CheckAfter) ->
             Error
     end.
 
--spec start_board() -> #board_state{}.
+-spec start_board() ->
+          #board_state{}.
 start_board() ->
     #board_state{
        wk_castled = false,
