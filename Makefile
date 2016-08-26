@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 DIALYZER_APPS = \
-	erts kernel stdlib crypto public_key inets xmerl sasl
+	erts kernel stdlib crypto public_key inets xmerl sasl tools
 
 # some modules which use the native option will be native compiled
 compile:
@@ -24,7 +24,7 @@ console:	generate
 	rel/ec_chess/bin/ec_chess console
 
 clean:
-	./rebar clean
+	rm -rf `find . -name *.beam`
 
 dialyze:	compile
 	dialyzer --plt .dialyzer_plt  -pa apps/*/ebin -Wno_return \
@@ -39,7 +39,7 @@ xref:		compile
 
 check: xref dialyze
 
-perftest:	clean compile
+perftest:
 	escript -c ./apps/ec_perftest/scripts/perftest.escript
 
 fprof:		clean erlang_compile
