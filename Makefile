@@ -1,7 +1,8 @@
 SHELL := /bin/bash
 
+##
 DIALYZER_APPS = \
-	erts kernel stdlib crypto public_key inets xmerl sasl tools
+	erts stdlib crypto public_key inets xmerl sasl tools
 
 # some modules which use the native option will be native compiled
 compile:
@@ -28,7 +29,8 @@ clean:
 
 dialyze:	compile
 	dialyzer --plt .dialyzer_plt  -pa apps/*/ebin -Wno_return \
-		     --apps apps/*/ebin
+		     --apps apps/*/ebin | tee dialyzer_output.txt > /dev/null
+	filter_output.sh dialyzer_output.txt dialyzer_filter_warnings.txt
 
 .create_plt:
 	dialyzer --no_check_plt --build_plt  --output_plt .dialyzer_plt \

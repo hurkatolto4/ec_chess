@@ -206,7 +206,7 @@ op_cond3(?BR, State, {{Fx, Fy}, {Tx, Ty}} = _Op) ->
 %% Black knight
 op_cond3(?BN, _State, {{Fx, Fy}, {Tx, Ty}} = _Op) ->
     case (diff(Tx, Fx) =:= 1 andalso diff(Ty, Fy) =:= 2) orelse
-         (diff(Tx, Fx) =:= 2 andalso diff(Ty, Fy) =:= 1) of
+        (diff(Tx, Fx) =:= 2 andalso diff(Ty, Fy) =:= 1) of
         true ->
             ok;
         false ->

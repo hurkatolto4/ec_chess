@@ -1,4 +1,3 @@
-*~
 .eunit
 deps
 *.o
@@ -9,11 +8,12 @@ deps
 apps/*/doc
 .dialyzer_plt
 *.swp
-rel/files
 apps/*/ebin
-.rebar
 tags
 TAGS
 *.so
-rebar
 *.png
+apps/ec_chess/.rebar
+apps/ec_perftest/.rebar
+apps/ec_prof/.rebar
+
